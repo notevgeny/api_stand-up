@@ -1,35 +1,67 @@
 import http from "node:http";
 import fs from "node:fs/promises";
+import { sendError } from "./modules/send.js";
+import { checkFile } from "./modules/checkFile.js";
+import { handleGetComedians } from "./modules/handleGetComedians.js";
+import { handleAddClient } from "./modules/handleAddClient.js";
+import { handleGetClients } from "./modules/handleGetClients.js";
+import { handleUpdateClient } from "./modules/handleUpdateClient.js";
 
 const PORT = 8080;
+const COMEDIANS = './comedians.json';
+export const CLIENTS = './clients.json';
 
 
-http
+const startServer = async () => {
+    if (!(await checkFile(COMEDIANS))) {
+        return;
+    }
+
+    await checkFile(CLIENTS, true);
+
+    const comediansData = await fs.readFile(COMEDIANS, 'utf-8');
+    const comedians = JSON.parse(comediansData);
+
+    http
     .createServer(async (request, response) => {
-        if (request.method === "GET" && request.url === '/comedians'){
-            try {
-                const data = await fs.readFile('comedians.json', 'utf-8');
-                response.writeHead(200, {
-                    "Content-type": "text/json; charset=utf-8",
-                    "Access-Control-Allow-Origin": "*",
-                })
-                response.end(data);
+        try {
+            response.setHeader("Access-Control-Allow-Origin", "*");
+            const urlSegments = request.url.split('/').filter(Boolean);
 
-            } catch (error) {
-                response.writeHead(500, {
-                    "Content-type": "text/plain; charset=utf-8",
-                });
-                response.end(`Server ошибка error: ${error}`);
+            if (request.method === "GET" && urlSegments[0] === 'comedians'){
+                handleGetComedians(response, request, comedians, urlSegments);
+                return;
             }
-            
-            
+
+            if (request.method === "POST" && urlSegments[0] === 'clients') {
+                handleAddClient(request, response);
+                return;
+            }
+
+            if (request.method === 'GET' && urlSegments[0] === 'clients' && urlSegments.length === 2) {
+                const ticketNumber = urlSegments[1];
+                handleGetClients(response, request, ticketNumber);
+                return;
+            }
+
+            if (request.method === 'PATCH' && urlSegments[0] === 'clients' && urlSegments.length === 2) {
+                handleUpdateClient(request, response, urlSegments);
+                return;
+            }
+
+            sendError(response, 404, 'Not found')
+
+        } catch (error) {
+            sendError(response, 500, `Server error: ${error}`);
         }
-        else {
-            response.writeHead(404);
-            response.end('<h1>Not found</h1>');
-        }
+            
         
     })
     .listen(PORT);
 
     console.log(`Server is running on http://localhost:${PORT}`);
+}
+
+startServer();
+
+
