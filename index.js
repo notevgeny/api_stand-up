@@ -26,6 +26,15 @@ const startServer = async () => {
     .createServer(async (request, response) => {
         try {
             response.setHeader("Access-Control-Allow-Origin", "*");
+            response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+            response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+            if (request.method === 'OPTIONS') {
+                response.writeHead(204);
+                response.end();
+                return;
+            }
+            
             const urlSegments = request.url.split('/').filter(Boolean);
 
             if (request.method === "GET" && urlSegments[0] === 'comedians'){
